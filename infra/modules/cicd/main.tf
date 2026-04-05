@@ -1,67 +1,11 @@
-# Creates: CodePipeline, CodeBuild, S3 artifacts, GitHub connection
-terraform {
-  required_version = ">= 1.7.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-variable "project" {
-  type        = string
-  description = "Project name"
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment name"
-}
-
-variable "ecr_repository_url" {
-  type        = string
-  description = "ECR repository URL"
-}
-
-variable "ecs_cluster_name" {
-  type        = string
-  description = "ECS cluster name"
-}
-
-variable "ecs_service_name" {
-  type        = string
-  description = "ECS service name"
-}
-
-variable "task_execution_role_arn" {
-  type        = string
-  description = "ECS task execution role ARN"
-}
-
-variable "github_owner" {
-  type        = string
-  description = "GitHub repository owner"
-}
-
-variable "github_repo" {
-  type        = string
-  description = "GitHub repository name"
-}
-
-variable "github_branch" {
-  type        = string
-  default     = "main"
-  description = "GitHub branch to deploy from"
-}
-
 data "aws_caller_identity" "current" {}
 data "aws_region" "current" {}
 
-# S3 Artifacts Bucket
+# ─── S3 ───────────────────────────────────────────────────────────────────────
+
 resource "aws_s3_bucket" "artifacts" {
-  bucket              = "${var.project}-cicd-artifacts-${data.aws_caller_identity.current.account_id}"
-  force_destroy       = true
+  bucket        = "${var.project}-cicd-artifacts-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 
   tags = {
     Name        = "${var.project}-artifacts"
@@ -70,17 +14,32 @@ resource "aws_s3_bucket" "artifacts" {
   }
 }
 
-# Block public access to artifacts bucket
 resource "aws_s3_bucket_public_access_block" "artifacts" {
-  bucket = aws_s3_bucket.artifacts.id
-
+  bucket                  = aws_s3_bucket.artifacts.id
   block_public_acls       = true
   block_public_policy     = true
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
 
-# CloudWatch Log Group for CodeBuild
+resource "aws_s3_bucket_versioning" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
+resource "aws_s3_bucket_server_side_encryption_configuration" "artifacts" {
+  bucket = aws_s3_bucket.artifacts.id
+  rule {
+    apply_server_side_encryption_by_default {
+      sse_algorithm = "AES256"
+    }
+  }
+}
+
+# ─── CloudWatch ───────────────────────────────────────────────────────────────
+
 resource "aws_cloudwatch_log_group" "codebuild" {
   name              = "/codebuild/${var.project}"
   retention_in_days = 3
@@ -91,21 +50,18 @@ resource "aws_cloudwatch_log_group" "codebuild" {
   }
 }
 
-# CodePipeline IAM Role
+# ─── CodePipeline IAM ─────────────────────────────────────────────────────────
+
 resource "aws_iam_role" "codepipeline" {
   name = "${var.project}-codepipeline-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "codepipeline.amazonaws.com"
-        }
-      }
-    ]
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
+      Principal = { Service = "codepipeline.amazonaws.com" }
+    }]
   })
 
   tags = {
@@ -114,7 +70,6 @@ resource "aws_iam_role" "codepipeline" {
   }
 }
 
-# CodePipeline Policy
 resource "aws_iam_role_policy" "codepipeline" {
   name = "${var.project}-codepipeline-policy"
   role = aws_iam_role.codepipeline.id
@@ -123,6 +78,7 @@ resource "aws_iam_role_policy" "codepipeline" {
     Version = "2012-10-17"
     Statement = [
       {
+        Sid    = "S3ArtifactAccess"
         Effect = "Allow"
         Action = [
           "s3:GetObject",
@@ -135,55 +91,50 @@ resource "aws_iam_role_policy" "codepipeline" {
         ]
       },
       {
+        Sid    = "CodeBuildTrigger"
         Effect = "Allow"
         Action = [
           "codebuild:StartBuild",
           "codebuild:BatchGetBuilds"
         ]
-        Resource = "*"
+        Resource = aws_codebuild_project.app.arn
       },
       {
+        Sid    = "ECSDeployAccess"
         Effect = "Allow"
         Action = [
-          "ecs:RegisterTaskDefinition",
-          "ecs:DescribeServices",
-          "ecs:UpdateService"
+          "ecs:*"
         ]
         Resource = "*"
       },
       {
+        Sid    = "PassRoleToECS"
         Effect = "Allow"
-        Action = [
-          "iam:PassRole"
-        ]
-        Resource = [var.task_execution_role_arn]
+        Action = ["iam:PassRole"]
+        Resource = "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/*"
       },
       {
+        Sid    = "CodeStarConnection"
         Effect = "Allow"
-        Action = [
-          "codestarconnections:UseConnection"
-        ]
-        Resource = "*"
+        Action = ["codestar-connections:UseConnection"]
+        Resource = aws_codestarconnections_connection.github.arn
       }
     ]
   })
 }
 
-# CodeBuild IAM Role
+# ─── CodeBuild IAM ────────────────────────────────────────────────────────────
+
 resource "aws_iam_role" "codebuild" {
   name = "${var.project}-codebuild-role"
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
-      {
-        Action = "sts:AssumeRole"
-        Effect = "Allow"
-        Principal = {
-          Service = "codebuild.amazonaws.com"
-        }
-      }
-    ]
+    Statement = [{
+      Effect    = "Allow"
+      Action    = "sts:AssumeRole"
+      Principal = { Service = "codebuild.amazonaws.com" }
+    }]
   })
 
   tags = {
@@ -192,7 +143,6 @@ resource "aws_iam_role" "codebuild" {
   }
 }
 
-# CodeBuild Policy
 resource "aws_iam_role_policy" "codebuild" {
   name = "${var.project}-codebuild-policy"
   role = aws_iam_role.codebuild.id
@@ -201,13 +151,13 @@ resource "aws_iam_role_policy" "codebuild" {
     Version = "2012-10-17"
     Statement = [
       {
-        Effect = "Allow"
-        Action = [
-          "ecr:GetAuthorizationToken"
-        ]
+        Sid      = "ECRAuthToken"
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       },
       {
+        Sid    = "ECRImagePush"
         Effect = "Allow"
         Action = [
           "ecr:BatchCheckLayerAvailability",
@@ -216,9 +166,10 @@ resource "aws_iam_role_policy" "codebuild" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload"
         ]
-        Resource = "${var.ecr_repository_url}*"
+        Resource = "arn:aws:ecr:${data.aws_region.current.name}:${data.aws_caller_identity.current.account_id}:repository/${var.ecr_repo_name}"
       },
       {
+        Sid    = "CloudWatchLogs"
         Effect = "Allow"
         Action = [
           "logs:CreateLogGroup",
@@ -228,6 +179,7 @@ resource "aws_iam_role_policy" "codebuild" {
         Resource = "${aws_cloudwatch_log_group.codebuild.arn}:*"
       },
       {
+        Sid    = "S3ArtifactAccess"
         Effect = "Allow"
         Action = [
           "s3:GetObject",
@@ -236,21 +188,20 @@ resource "aws_iam_role_policy" "codebuild" {
         Resource = "${aws_s3_bucket.artifacts.arn}/*"
       },
       {
-        Effect = "Allow"
-        Action = [
-          "ecs:RegisterTaskDefinition"
-        ]
+        Sid      = "ECSTaskDefinition"
+        Effect   = "Allow"
+        Action   = ["ecs:RegisterTaskDefinition"]
         Resource = "*"
       }
     ]
   })
 }
 
-# CodeBuild Project
+# ─── CodeBuild Project ────────────────────────────────────────────────────────
+
 resource "aws_codebuild_project" "app" {
-  name           = "${var.project}-build"
-  service_role   = aws_iam_role.codebuild.arn
-  source_version = var.github_branch
+  name         = "${var.project}-build"
+  service_role = aws_iam_role.codebuild.arn
 
   artifacts {
     type = "CODEPIPELINE"
@@ -263,24 +214,22 @@ resource "aws_codebuild_project" "app" {
     image_pull_credentials_type = "CODEBUILD"
     privileged_mode             = true
 
-    environment_variables = [
-      {
-        name  = "ECR_REPO_URL"
-        value = var.ecr_repository_url
-      },
-      {
-        name  = "AWS_DEFAULT_REGION"
-        value = data.aws_region.current.name
-      },
-      {
-        name  = "ECS_CLUSTER"
-        value = var.ecs_cluster_name
-      },
-      {
-        name  = "ECS_SERVICE"
-        value = var.ecs_service_name
-      }
-    ]
+    environment_variable {
+      name  = "ECR_REPO_URL"
+      value = var.ecr_repository_url
+    }
+    environment_variable {
+      name  = "AWS_DEFAULT_REGION"
+      value = data.aws_region.current.name
+    }
+    environment_variable {
+      name  = "ECS_CLUSTER"
+      value = var.ecs_cluster_name
+    }
+    environment_variable {
+      name  = "ECS_SERVICE"
+      value = var.ecs_service_name
+    }
   }
 
   source {
@@ -301,10 +250,11 @@ resource "aws_codebuild_project" "app" {
   }
 }
 
-# GitHub Connection
+# ─── GitHub Connection ────────────────────────────────────────────────────────
+
 resource "aws_codestarconnections_connection" "github" {
-  name            = "${var.project}-github"
-  provider_type  = "GitHub"
+  name          = "${var.project}-github"
+  provider_type = "GitHub"
 
   tags = {
     Project     = var.project
@@ -312,7 +262,8 @@ resource "aws_codestarconnections_connection" "github" {
   }
 }
 
-# CodePipeline
+# ─── CodePipeline ─────────────────────────────────────────────────────────────
+
 resource "aws_codepipeline" "app" {
   name     = "${var.project}-pipeline"
   role_arn = aws_iam_role.codepipeline.arn
@@ -324,7 +275,6 @@ resource "aws_codepipeline" "app" {
 
   stage {
     name = "Source"
-
     action {
       name             = "SourceAction"
       category         = "Source"
@@ -335,15 +285,15 @@ resource "aws_codepipeline" "app" {
 
       configuration = {
         FullRepositoryId = "${var.github_owner}/${var.github_repo}"
-        Branch           = var.github_branch
+        BranchName       = var.github_branch
         ConnectionArn    = aws_codestarconnections_connection.github.arn
+        DetectChanges    = "true" # ✅ auto-trigger on push
       }
     }
   }
 
   stage {
     name = "Build"
-
     action {
       name             = "BuildAction"
       category         = "Build"
@@ -361,7 +311,6 @@ resource "aws_codepipeline" "app" {
 
   stage {
     name = "Deploy"
-
     action {
       name            = "DeployAction"
       category        = "Deploy"

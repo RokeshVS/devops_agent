@@ -1,0 +1,32 @@
+include "root" {
+  path = find_in_parent_folders("root.hcl")
+}
+
+terraform {
+  source = "../../modules/sns"
+}
+
+locals {
+  vars = read_terragrunt_config(find_in_parent_folders("root.hcl"))
+}
+
+dependency "vpc" {
+  config_path = "../vpc"
+}
+
+dependency "ecr" {
+  config_path = "../ecr"
+}
+
+inputs = {
+  project              = local.vars.locals.project
+  environment          = local.vars.locals.environment
+  vpc_id               = dependency.vpc.outputs.vpc_id
+  public_subnet_ids    = dependency.vpc.outputs.public_subnet_ids
+  ecr_repository_url   = dependency.ecr.outputs.repository_url
+  db_endpoint          = "localhost:5432"
+  db_port              = 5432
+  db_name              = "appdb"
+  db_username          = "appuser"
+  db_password_ssm_arn  = "arn:aws:ssm:us-east-1:acc-id:parameter/db_pass"
+}

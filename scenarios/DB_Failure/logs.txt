@@ -1,0 +1,51 @@
+sh 01_db_failure.sh 
+==========================================
+SCENARIO 1: DATABASE CONNECTIVITY FAILURE
+==========================================
+
+This scenario tests: DevOps Agent detects DB connectivity incident,
+correlates the alarm with the security group change, and suggests remediation.
+
+Step 1: Finding ECS and RDS security groups...
+ECS Security Group: sg-0da984f73dd67a52e
+RDS Security Group: sg-03e09b18dbb9f439a
+
+Step 2: Revoking ECS → RDS ingress rule (port 5432)...
+{
+    "Return": true,
+    "RevokedSecurityGroupRules": [
+        {
+            "SecurityGroupRuleId": "sgr-04a356c1d5a8553dc",
+            "GroupId": "sg-03e09b18dbb9f439a",
+            "IsEgress": false,
+            "IpProtocol": "tcp",
+            "FromPort": 5432,
+            "ToPort": 5432,
+            "ReferencedGroupId": "sg-0da984f73dd67a52e"
+        }
+    ]
+}
+Done
+
+Step 3: Waiting 30 seconds for metrics to update...
+Done
+
+Step 4: Testing /health endpoint (expecting failures)...
+  Attempt 1: 000FAILED
+  Attempt 2: 000FAILED
+  Attempt 3: 000FAILED
+  Attempt 4: 000FAILED
+  Attempt 5: 000FAILED
+  Attempt 6: 000FAILED
+  Attempt 7: 000FAILED
+  Attempt 8: 000FAILED
+  Attempt 9: 000FAILED
+  Attempt 10: 000FAILED
+
+============================================
+TRY THESE DEVOPS AGENT CHAT PROMPTS:
+============================================
+1. 'Why is my ECS service returning health check failures?'
+2. 'What infrastructure changes happened in the last 30 minutes?'
+
+When done, run: ./scenarios/restore.sh

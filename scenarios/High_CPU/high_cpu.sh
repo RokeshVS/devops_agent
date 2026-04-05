@@ -1,9 +1,8 @@
 #!/bin/bash
-set -euo pipefail
 
-# SCENARIO 2: High CPU Spike
+# SCENARIO : High CPU Spike
 echo "=========================================="
-echo "SCENARIO 2: CPU SPIKE"
+echo "SCENARIO : CPU SPIKE"
 echo "=========================================="
 echo ""
 echo "This scenario tests: Anomaly detection, on-demand report generation,"
@@ -50,7 +49,6 @@ echo "============================================"
 echo "OBSERVATIONS:"
 echo "============================================"
 echo "OBSERVE: CloudWatch Dashboard devops-agent-lab-overview — CPU widget spiking"
-echo "OBSERVE: DevOps Guru console → Insights → Proactive Insight may appear"
 echo "OBSERVE: CloudWatch alarm '$ALARM_NAME' should be in ALARM state"
 echo ""
 
@@ -59,9 +57,6 @@ echo "TRY THESE DEVOPS AGENT CHAT PROMPTS:"
 echo "============================================"
 echo "1. 'My ECS CPU is spiking. Is this a real incident or an anomaly?'"
 echo "2. 'What is the blast radius if the CPU stays at this level?'"
-echo "3. 'Create a custom chart of ECS CPU and memory for the last 2 hours'"
-echo "4. 'Generate a summary report of application health and share it'"
-echo "5. 'Should I scale horizontally or vertically for this workload?'"
 echo ""
 
 echo "When done, run: ./scenarios/05_restore.sh"

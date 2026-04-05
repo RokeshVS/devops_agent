@@ -52,8 +52,7 @@ cd infra/live/vpc && terragrunt apply && cd -
 cd infra/live/ecr && terragrunt apply && cd -
 
 # 2. Create SNS topic first (ecs module needs sns_topic_arn for alarms)
-cd infra/live/devops-agent && \
-  terragrunt apply --target=aws_sns_topic.devops_alerts && cd -
+cd infra/live/sns && terragrunt apply && cd -
 
 # 3. Build and push initial image (ECS task def needs a resolvable image)
 ECR_URL=$(cd infra/live/ecr && terragrunt output -raw repository_url && cd -)
@@ -62,11 +61,11 @@ aws ecr get-login-password --region $AWS_REGION | \
 docker build -t $ECR_URL:latest ./app
 docker push $ECR_URL:latest
 
-# 4. ECS (needs vpc, ecr, sns_topic_arn)
-cd infra/live/ecs && terragrunt apply && cd -
-
-# 5. RDS (needs vpc, ecs sg_id) — takes ~5 minutes
+# 4. RDS (needs vpc, ecs sg_id) — takes ~5 minutes
 cd infra/live/rds && terragrunt apply && cd -
+
+# 5. ECS (needs vpc, ecr, sns_topic_arn)
+cd infra/live/ecs && terragrunt apply && cd -
 
 # 6. CI/CD pipeline (needs ecr, ecs)
 cd infra/live/cicd && terragrunt apply && cd -
@@ -102,10 +101,8 @@ echo "Deployment complete. Export TASK_IP=$TASK_IP before running scenario scrip
 
 | Script                | What It Breaks                          | DevOps Agent Feature Tested                    |
 |-----------------------|-----------------------------------------|------------------------------------------------|
-| `01_db_failure.sh`    | Revokes ECS→RDS SG rule                 | Incident detection + config change correlation |
-| `02_high_cpu.sh`      | Saturates CPU for 30s                   | Anomaly detection + on-demand report generation |
-| `03_bad_deploy.sh`    | Pushes a crash-on-start image           | Deployment failure correlation + rollback      |
-| `04_memory_pressure.sh`| Allocates 300MB in 512MB task          | Proactive insight + rightsizing recommendation  |
+| `db_failure.sh`    | Revokes ECS→RDS SG rule                 | Incident detection + config change correlation |
+| `high_cpu.sh`      | Saturates CPU for 30s                   | Anomaly detection + on-demand report generation |
 | `05_restore.sh`       | Restores all of the above               | Post-incident summary + preventive advice      |
 
 **Running scenarios:**

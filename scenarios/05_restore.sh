@@ -1,5 +1,4 @@
 #!/bin/bash
-set -euo pipefail
 
 # SCENARIO 5: Environment Restore
 echo "=========================================="
@@ -61,13 +60,6 @@ else
     echo "  ! Health check returned HTTP $HEALTH (may still be healing)"
   fi
 fi
-echo ""
-
-echo "============================================"
-echo "ENVIRONMENT RESTORED"
-echo "============================================"
-echo ""
-echo "DevOps Guru insights should close automatically within 5-10 minutes"
 echo ""
 
 echo "============================================"

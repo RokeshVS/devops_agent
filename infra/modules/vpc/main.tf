@@ -1,23 +1,13 @@
 # Creates: VPC with public and private subnets, Internet Gateway
-terraform {
-  required_version = ">= 1.7.0"
-  required_providers {
-    aws = {
-      source  = "hashicorp/aws"
-      version = "~> 5.0"
-    }
-  }
-}
-
-variable "project" {
-  type        = string
-  description = "Project name"
-}
-
-variable "environment" {
-  type        = string
-  description = "Environment name"
-}
+# terraform {
+#   required_version = ">= 1.7.0"
+#   required_providers {
+#     aws = {
+#       source  = "hashicorp/aws"
+#       version = "~> 5.0"
+#     }
+#   }
+# }
 
 data "aws_availability_zones" "available" {
   state = "available"

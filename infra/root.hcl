@@ -1,5 +1,6 @@
 locals {
   project    = "devops-agent-lab"
+  environment = "dev"
   region     = "us-east-1"
   account_id = run_cmd("aws", "sts", "get-caller-identity", "--query", "Account", "--output", "text")
 }

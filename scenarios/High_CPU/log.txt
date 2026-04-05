@@ -1,0 +1,39 @@
+sh 02_high_cpu.sh 
+==========================================
+SCENARIO 2: CPU SPIKE
+==========================================
+
+This scenario tests: Anomaly detection, on-demand report generation,
+and chat-based SRE analysis.
+
+Step 1: Starting CPU stress test (will run 3 rounds of 5 parallel requests)...
+
+Round 1: Initiating 5 parallel /stress/cpu requests...
+Round 1: Complete
+Checking CPU alarm state...
+  Alarm state: OK
+  Waiting 20 seconds before next round...
+Round 2: Initiating 5 parallel /stress/cpu requests...
+Round 2: Complete
+Checking CPU alarm state...
+  Alarm state: OK
+  Waiting 20 seconds before next round...
+Round 3: Initiating 5 parallel /stress/cpu requests...
+Round 3: Complete
+Checking CPU alarm state...
+  Alarm state: OK
+  Waiting 20 seconds before next round...
+
+============================================
+OBSERVATIONS:
+============================================
+OBSERVE: CloudWatch Dashboard devops-agent-lab-overview — CPU widget spiking
+OBSERVE: CloudWatch alarm 'devops-agent-lab-ecs-cpu-high' should be in ALARM state
+
+============================================
+TRY THESE DEVOPS AGENT CHAT PROMPTS:
+============================================
+1. 'My ECS CPU is spiking. Is this a real incident or an anomaly?'
+2. 'What is the blast radius if the CPU stays at this level?'
+
+When done, run: ./scenarios/restore.sh
