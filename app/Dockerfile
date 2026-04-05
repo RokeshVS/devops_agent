@@ -1,6 +1,6 @@
 # Multi-stage Dockerfile for Flask application
 # Stage 1: Builder
-FROM public.ecr.aws/docker/library/python:3.12-slim AS builder
+FROM python:3.12-slim AS builder
 
 WORKDIR /build
 COPY requirements.txt .
