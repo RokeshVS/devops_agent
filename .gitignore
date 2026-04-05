@@ -1,0 +1,45 @@
+# Local .terraform directories
+**/.terraform/*
+
+# Terraform lockfile (optional: some teams commit this)
+.terraform.lock.hcl
+
+# Terraform state files
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Terraform variable files (may contain secrets)
+*.tfvars
+*.tfvars.json
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terragrunt cache and temp files
+**/.terragrunt-cache/*
+*.terragrunt-source-manifest
+tmp.txt
+
+# Generated files by Terragrunt
+backend.tf
+provider.tf
+
+# CLI config file
+.terraformrc
+terraform.rc
+
+# Plan files
+*.tfplan
+*.plan
+
+# SSH keys / credentials accidentally placed here
+*.pem
+*.key
