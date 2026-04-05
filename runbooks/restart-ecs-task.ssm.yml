@@ -1,0 +1,45 @@
+schemaVersion: "0.3"
+description: "Force new deployment of ECS service to reinitialize all tasks"
+parameters:
+  ClusterName:
+    type: String
+    description: "Name of the ECS Cluster"
+  ServiceName:
+    type: String
+    description: "Name of the ECS Service"
+  Region:
+    type: String
+    description: "AWS Region"
+
+mainSteps:
+  - name: ForceNewDeployment
+    action: "aws:executeAwsApi"
+    inputs:
+      Service: ecs
+      Api: UpdateService
+      cluster: "{{ ClusterName }}"
+      service: "{{ ServiceName }}"
+      forceNewDeployment: true
+      region: "{{ Region }}"
+    outputs:
+      - Name: ServiceArn
+        Selector: "$.service.serviceArn"
+        Type: String
+
+  - name: WaitForStable
+    action: "aws:waitForAwsResourceProperty"
+    inputs:
+      Service: ecs
+      Api: DescribeServices
+      cluster: "{{ ClusterName }}"
+      services:
+        - "{{ ServiceName }}"
+      region: "{{ Region }}"
+      PropertySelector: "$.services[0].deployments[0].rolloutState"
+      DesiredValues:
+        - "COMPLETED"
+    onFailure: Step
+    timeoutSeconds: 300
+
+outputs:
+  - ForceNewDeployment.ServiceArn
