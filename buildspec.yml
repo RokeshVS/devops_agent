@@ -1,13 +1,21 @@
 version: 0.2
 
+env:
+  variables:
+    ECR_REPO_NAME: "devops-agent-lab-app"
+
 phases:
   pre_build:
     commands:
-      - echo "Logging in to Amazon ECR..."
-      - REGISTRY=$(echo $ECR_REPO_URL | cut -d'/' -f1)
-      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $REGISTRY
+      - echo "Constructing ECR URL..."
+      - AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
+      - ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_DEFAULT_REGION}.amazonaws.com"
+      - ECR_REPO_URL="${ECR_REGISTRY}/${ECR_REPO_NAME}"
+      - echo "ECR_REPO_URL=$ECR_REPO_URL"
       - IMAGE_TAG=$(echo $CODEBUILD_RESOLVED_SOURCE_VERSION | cut -c1-7)
       - echo "IMAGE_TAG=$IMAGE_TAG"
+      - echo "Logging in to Amazon ECR..."
+      - aws ecr get-login-password --region $AWS_DEFAULT_REGION | docker login --username AWS --password-stdin $ECR_REGISTRY
 
   build:
     commands:
